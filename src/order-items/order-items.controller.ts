@@ -77,11 +77,12 @@ export class OrderItemsController {
         { $limit: parseInt(limit.toString()) },
         {
           $project: {
-            id: '$order_item_id',
+            id: '$order_id',
             product_id: '$product_id',
             product_category: '$product.product_category_name',
             price: '$price',
             date: '$shipping_limit_date',
+            freight_value: '$freight_value',
           },
         },
       ])
@@ -97,6 +98,49 @@ export class OrderItemsController {
       limit: parseInt(limit.toString()),
       offset: parseInt(offset.toString()),
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Get(':id')
+  @ApiOperation({ summary: 'Get an order item by ID' })
+  @ApiParam({ name: 'id', required: true, description: 'Order item ID' })
+  @ApiResponse({ status: 200, description: 'Return the order item' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Order item not found' })
+  async getOrderItemById(@Req() req, @Param('id') id: string) {
+    const sellerId = req.seller.seller_id;
+
+    const orderItem = await this.db
+      .collection('order_items')
+      .aggregate([
+        { $match: { order_id: id } },
+        {
+          $lookup: {
+            from: 'products',
+            localField: 'product_id',
+            foreignField: 'product_id',
+            as: 'product',
+          },
+        },
+        { $unwind: '$product' },
+        {
+          $project: {
+            id: '$order_id',
+            product_id: '$product_id',
+            product_category: '$product.product_category_name',
+            price: '$price',
+            date: '$shipping_limit_date',
+            freight_value: '$freight_value',
+          },
+        },
+      ])
+      .toArray();
+
+    if (orderItem.length === 0) {
+      throw new HttpException('Order item not found', HttpStatus.NOT_FOUND);
+    }
+
+    return orderItem[0];
   }
 
   @UseGuards(AuthGuard)

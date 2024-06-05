@@ -8,6 +8,7 @@ export declare class OrderItemsController {
         limit: number;
         offset: number;
     }>;
+    getOrderItemById(req: any, id: string): Promise<import("bson").Document>;
     deleteOrderItem(req: any, id: string): Promise<{
         message: string;
     }>;

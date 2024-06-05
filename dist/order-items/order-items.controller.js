@@ -41,11 +41,12 @@ let OrderItemsController = class OrderItemsController {
             { $limit: parseInt(limit.toString()) },
             {
                 $project: {
-                    id: '$order_item_id',
+                    id: '$order_id',
                     product_id: '$product_id',
                     product_category: '$product.product_category_name',
                     price: '$price',
                     date: '$shipping_limit_date',
+                    freight_value: '$freight_value',
                 },
             },
         ])
@@ -59,6 +60,38 @@ let OrderItemsController = class OrderItemsController {
             limit: parseInt(limit.toString()),
             offset: parseInt(offset.toString()),
         };
+    }
+    async getOrderItemById(req, id) {
+        const sellerId = req.seller.seller_id;
+        const orderItem = await this.db
+            .collection('order_items')
+            .aggregate([
+            { $match: { order_id: id } },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'product_id',
+                    foreignField: 'product_id',
+                    as: 'product',
+                },
+            },
+            { $unwind: '$product' },
+            {
+                $project: {
+                    id: '$order_id',
+                    product_id: '$product_id',
+                    product_category: '$product.product_category_name',
+                    price: '$price',
+                    date: '$shipping_limit_date',
+                    freight_value: '$freight_value',
+                },
+            },
+        ])
+            .toArray();
+        if (orderItem.length === 0) {
+            throw new common_1.HttpException('Order item not found', common_1.HttpStatus.NOT_FOUND);
+        }
+        return orderItem[0];
     }
     async deleteOrderItem(req, id) {
         const sellerId = req.seller.seller_id;
@@ -103,6 +136,20 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], OrderItemsController.prototype, "getOrderItems", null);
+__decorate([
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.Get)(':id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get an order item by ID' }),
+    (0, swagger_1.ApiParam)({ name: 'id', required: true, description: 'Order item ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Return the order item' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Order item not found' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], OrderItemsController.prototype, "getOrderItemById", null);
 __decorate([
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     (0, common_1.Delete)(':id'),
